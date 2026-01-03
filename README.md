@@ -1,6 +1,8 @@
-Hello all, my name is Primo Moreno and this is a project inspired by playing the classic Midwestern card game Euchre with my friends at Augustana College.
+Hello all,
 
-The creation of this project was assisted with AI
+My name is Primo Moreno and this is a project inspired by playing the classic Midwestern card game Euchre with my friends at Augustana College.
+
+The creation of this project was assisted with Anthropic's Claude AI chatbot.
 
 This is a project set up to train euchre machine learning models to play euchre.
 
@@ -41,4 +43,5 @@ Console Commands to set up dependincies:
     .\venv\Scripts\Activate
     pip install -r requirements.txt
     Ctrl + Shift + P
+
     Select Python Interpreter 
