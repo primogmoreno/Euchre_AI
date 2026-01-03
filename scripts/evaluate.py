@@ -4,6 +4,8 @@ Evaluate agents against each other.
 
 Usage:
     python scripts/evaluate.py
+    
+    # For testing the neural agent
     python scripts/evaluate.py --model checkpoints/final_model.pth --games 500
 """
 

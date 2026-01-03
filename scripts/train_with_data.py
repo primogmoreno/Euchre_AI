@@ -23,8 +23,8 @@ from tqdm import tqdm
 
 import config
 from model.network import EuchreNetwork
-from training.ppo import PPOLoss, compute_gae
-from training.self_play import experiences_to_tensors
+from training.ppo import PPOLoss
+from training.self_play import experiences_to_tensors, compute_gae_by_player
 from data_collection.instrumented_runner import InstrumentedSelfPlayRunner
 
 
@@ -93,12 +93,8 @@ def train_with_collection(
             # Convert to tensors
             batch = experiences_to_tensors(experiences)
             
-            # Compute advantages and returns
-            advantages, returns = compute_gae(
-                batch["rewards"],
-                batch["values"],
-                batch["dones"],
-            )
+            # Compute advantages and returns PER PLAYER (critical for multi-agent)
+            advantages, returns = compute_gae_by_player(experiences)
             
             advantages = torch.FloatTensor(advantages)
             returns = torch.FloatTensor(returns)

@@ -19,7 +19,7 @@ def card_to_str(card: Card) -> str:
 
 def hand_to_list(hand: list[Card]) -> list[str]:
     """Convert hand to list of readable strings."""
-    return [card_to_str(card) for card in hand]
+    return [card_to_str(c) for c in hand]
 
 
 def suit_to_str(suit: Optional[Suit]) -> Optional[str]:
@@ -36,15 +36,15 @@ class BaseCollector:
         self.logger = logger
         self.pending = {}  # Track decisions awaiting outcomes
     
-    def _base_record(self, state: GameState, player: int, episode: int) -> dict:
+    def _base_record(self, state: GameState, player: int, round_key) -> dict:
         """Create base record with common fields."""
         return {
-            "episode": episode,
+            "episode": round_key,  # Keep as "episode" for backwards compatibility
             "player": player,
             "dealer": state.dealer,
             "score_before": state.score.copy(),
             "hand": hand_to_list(state.hands[player]),
-            "all_hands": [hand_to_list(hand) for hand in state.hands],
+            "all_hands": [hand_to_list(h) for h in state.hands],
             "kitty": hand_to_list(state.kitty),
             "turned_card": card_to_str(state.turned_card) if state.turned_card else None,
         }
@@ -59,6 +59,7 @@ class GoingAloneCollector(BaseCollector):
     - Trump suit
     - Whether ordering up or calling
     - Position relative to dealer
+    - Calling round (1 or 2)
     - Outcome (tricks won, points earned, euchred?)
     """
     
@@ -67,43 +68,53 @@ class GoingAloneCollector(BaseCollector):
         state: GameState,
         player: int,
         action: str,
-        episode: int,
+        round_key,  # Can be int or string
     ):
         """Record when a player decides to go alone."""
         
-        record = self._base_record(state, player, episode)
+        record = self._base_record(state, player, round_key)
         
-        # Determine trump from action
+        # Determine trump and calling round from action
         if "order_up" in action:
             trump = state.turned_card.suit if state.turned_card else None
             ordered_up = True
+            calling_round = 1
+            # When ordering up, the turned card goes to dealer
+            # We don't know what dealer will discard yet - will be added later
+            buried_card = None  # Will be filled in by instrumented_runner
         else:
             # Parse suit from action like "call_spades_alone"
             parts = action.split("_")
             trump = Suit[parts[1].upper()] if len(parts) > 1 else None
             ordered_up = False
+            calling_round = 2
+            # In round 2, the turned card was already buried (it's the 4th kitty card)
+            # The kitty should already have 4 cards by the time round 2 happens
+            buried_card = card_to_str(state.kitty[-1]) if len(state.kitty) >= 4 else None
         
         record.update({
             "trump": suit_to_str(trump),
             "ordered_up": ordered_up,
+            "calling_round": calling_round,
+            "buried_card": buried_card,
             "caller_position": player,
             "position_relative_to_dealer": (player - state.dealer) % 4,
         })
         
         # Store pending - will complete when round ends
-        self.pending[episode] = record
+        self.pending[round_key] = record
     
     def record_outcome(
         self,
         state: GameState,
-        episode: int,
+        round_key,
     ):
         """Record the outcome after the round completes."""
         
-        if episode not in self.pending:
+        if round_key not in self.pending:
             return
         
-        record = self.pending.pop(episode)
+        record = self.pending.pop(round_key)
         
         caller = record["player"]
         caller_team = caller % 2
@@ -149,45 +160,50 @@ class TrumpCallCollector(BaseCollector):
         state: GameState,
         player: int,
         action: str,
-        episode: int,
+        round_key,  # Can be int or string
     ):
         """Record when a player calls trump (without going alone)."""
         
-        record = self._base_record(state, player, episode)
+        record = self._base_record(state, player, round_key)
         
         if "order_up" in action:
             trump = state.turned_card.suit if state.turned_card else None
             ordered_up = True
             round_num = 1
+            # When ordering up, we don't know what dealer will discard yet
+            buried_card = None  # Will be filled in by instrumented_runner
         else:
             parts = action.split("_")
             trump = Suit[parts[1].upper()] if len(parts) > 1 else None
             ordered_up = False
             round_num = 2
+            # In round 2, the turned card was already buried
+            buried_card = card_to_str(state.kitty[-1]) if len(state.kitty) >= 4 else None
         
         record.update({
             "trump": suit_to_str(trump),
             "ordered_up": ordered_up,
             "calling_round": round_num,
+            "buried_card": buried_card,
             "caller_position": player,
             "position_relative_to_dealer": (player - state.dealer) % 4,
             "is_dealer": player == state.dealer,
             "is_dealer_partner": player == (state.dealer + 2) % 4,
         })
         
-        self.pending[episode] = record
+        self.pending[round_key] = record
     
     def record_outcome(
         self,
         state: GameState,
-        episode: int,
+        round_key,
     ):
         """Record the outcome after the round completes."""
         
-        if episode not in self.pending:
+        if round_key not in self.pending:
             return
         
-        record = self.pending.pop(episode)
+        record = self.pending.pop(round_key)
         
         caller = record["player"]
         caller_team = caller % 2
@@ -225,11 +241,11 @@ class PassCollector(BaseCollector):
         self,
         state: GameState,
         player: int,
-        episode: int,
+        round_key,  # Can be int or string
     ):
         """Record when a player passes."""
         
-        record = self._base_record(state, player, episode)
+        record = self._base_record(state, player, round_key)
         
         record.update({
             "phase": state.phase.name,

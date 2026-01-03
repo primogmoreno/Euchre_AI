@@ -100,10 +100,19 @@ class EuchreRules:
     def determine_trick_winner(
         trick: list[Card],
         lead_player: int,
-        trump: Optional[Suit]
+        trump: Optional[Suit],
+        trick_players: Optional[list[int]] = None
     ) -> int:
         """
         Determine which player won a trick.
+        
+        Args:
+            trick: List of cards played in order
+            lead_player: Player who led the trick
+            trump: Trump suit (or None)
+            trick_players: Optional list of player indices who played each card.
+                          If not provided, assumes consecutive players from lead_player.
+                          MUST be provided when going alone (3 players).
         
         Returns the player index (0-3) of the winner.
         """
@@ -112,11 +121,15 @@ class EuchreRules:
         
         led_suit = EuchreRules.get_effective_suit(trick[0], trump)
         
-        best_player = lead_player
+        # If trick_players not provided, assume consecutive
+        if trick_players is None:
+            trick_players = [(lead_player + i) % 4 for i in range(len(trick))]
+        
+        best_player = trick_players[0]
         best_strength = EuchreRules.get_card_strength(trick[0], trump, led_suit)
         
         for i, card in enumerate(trick[1:], start=1):
-            player = (lead_player + i) % 4
+            player = trick_players[i]
             strength = EuchreRules.get_card_strength(card, trump, led_suit)
             
             if strength > best_strength:

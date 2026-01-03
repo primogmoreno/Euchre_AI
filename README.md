@@ -35,3 +35,10 @@ Key mechanics:
 Jack of trump (right bower) is highest
 Jack of same color (left bower) is second highest and counts as trump
 Must follow led suit if possible
+
+Console Commands to set up dependincies:
+    Setting up virtual environment:
+    .\venv\Scripts\Activate
+    pip install -r requirements.txt
+    Ctrl + Shift + P
+    Select Python Interpreter 

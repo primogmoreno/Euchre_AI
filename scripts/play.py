@@ -62,7 +62,6 @@ class HumanAgent(BaseAgent):
                 print("\nGame cancelled")
                 sys.exit(0)
 
-
 def play_game(human: HumanAgent, ai: BaseAgent):
     """Play a single game."""
     game = EuchreGame()
@@ -90,13 +89,14 @@ def play_game(human: HumanAgent, ai: BaseAgent):
         else:
             # AI's turn
             action = ai.select_action(obs, legal_actions)
-            print(f"\nPlayer {player} plays: {action}")
-
-            # Don't show the dealer's discard - it's hidden information
+            
+            # Format output based on phase
             if phase == GamePhase.DISCARD:
                 print(f"\nPlayer {player} discards a card (hidden)")
-            else:
+            elif phase == GamePhase.PLAYING:
                 print(f"\nPlayer {player} plays: {action}")
+            elif phase in (GamePhase.CALLING_ROUND_1, GamePhase.CALLING_ROUND_2):
+                print(f"\nPlayer {player} calls: {action}")
         
         result = game.step(action)
         observations = result.observations

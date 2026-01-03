@@ -1,5 +1,5 @@
 """
-Neural network agent using a trained model.
+Neural network agent using a trained neural network model.
 """
 
 import torch
@@ -17,6 +17,13 @@ class NeuralAgent(BaseAgent):
     
     Can operate in greedy mode (always pick best) or stochastic
     mode (sample from distribution) for exploration.
+
+    Greedy - Picks highest probability weight from possible actions
+        Ex. Order_up = 50%, so chose Order_up
+    Stochastic - Takes the weights and randomly decides an action taking into account probs
+        Ex. Pass: 45%
+            Order_up: 50%
+            Order_up_alone: 5%
     """
     
     def __init__(

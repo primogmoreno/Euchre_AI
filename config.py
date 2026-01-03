@@ -1,5 +1,5 @@
 """
-Configuration and hyperparameters for Euchre LLM.
+Configuration and hyperparameters for Euchre AI.
 """
 
 # =============================================================================
@@ -24,7 +24,7 @@ WINNING_SCORE = 10
 # =============================================================================
 
 STATE_SIZE = 176         # Size of encoded state vector
-ACTION_SIZE = 35         # Max possible actions (cards + calling options)
+ACTION_SIZE = 35         # Max possible actions (24 cards + 11 calling options)
 HIDDEN_SIZE = 256        # Hidden layer size
 POLICY_HIDDEN = 128      # Policy head hidden size
 VALUE_HIDDEN = 128       # Value head hidden size
@@ -34,6 +34,7 @@ VALUE_HIDDEN = 128       # Value head hidden size
 # =============================================================================
 
 LEARNING_RATE = 3e-4
+FINETUNE_LEARNING_RATE = 1e-5  # Much smaller for fine-tuning pre-trained models
 GAMMA = 0.99             # Discount factor
 GAE_LAMBDA = 0.95        # GAE parameter
 CLIP_EPSILON = 0.2       # PPO clipping

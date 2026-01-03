@@ -136,6 +136,30 @@ class EuchreGame:
         info = {"action": action, "player": player}
         
         if phase in (GamePhase.CALLING_ROUND_1, GamePhase.CALLING_ROUND_2):
+            # Reward shaping: small immediate reward/penalty for calling decisions
+            # This helps the model learn faster that calling with good hands is good
+            if action != "pass" and "order_up" in action or action.startswith("call_"):
+                # Count trump in hand to assess call quality
+                hand = self.state.hands[player]
+                
+                # Determine what trump would be
+                if "order_up" in action:
+                    trump_suit = self.state.turned_card.suit if self.state.turned_card else None
+                else:
+                    # Parse from action like "call_hearts"
+                    parts = action.split("_")
+                    trump_suit = Suit[parts[1].upper()] if len(parts) > 1 else None
+                
+                if trump_suit:
+                    trump_count = sum(1 for card in hand 
+                                    if EuchreRules.get_effective_suit(card, trump_suit) == trump_suit)
+                    
+                    # Small reward for calling with 3+ trump, penalty for 0-1 trump
+                    if trump_count >= 3:
+                        rewards[player] += 0.1  # Good call
+                    elif trump_count <= 1:
+                        rewards[player] -= 0.05  # Risky call
+            
             self._handle_calling(action)
         
         elif phase == GamePhase.DISCARD:
@@ -145,10 +169,16 @@ class EuchreGame:
             trick_complete = self._handle_play(action)
             
             if trick_complete:
+                # Get the players who played in this trick from play_history
+                num_cards = len(self.state.current_trick)
+                recent_plays = self.state.play_history[-num_cards:]
+                trick_players = [p for p, c in recent_plays]
+                
                 winner = EuchreRules.determine_trick_winner(
                     self.state.current_trick,
                     self.state.lead_player,
-                    self.state.trump
+                    self.state.trump,
+                    trick_players
                 )
                 winning_team = winner % 2
                 self.state.tricks_won[winning_team] += 1
@@ -184,6 +214,10 @@ class EuchreGame:
                     self.state.current_player = next_player
                 elif player == self.state.dealer:
                     # Dealer passed, move to round 2
+                    # Turned card goes face-down into kitty
+                    if self.state.turned_card:
+                        self.state.kitty.append(self.state.turned_card)
+                        self.state.turned_card = None
                     self.state.phase = GamePhase.CALLING_ROUND_2
                     self.state.current_player = (self.state.dealer + 1) % 4
                 else:
@@ -279,14 +313,35 @@ class EuchreGame:
         self.state.score[0] += team0_pts
         self.state.score[1] += team1_pts
         
+        # Determine which team called
+        caller_team = self.state.caller % 2 if self.state.caller is not None else None
+        
         # Rewards: positive for winning team, negative for losing
         rewards = [0.0, 0.0, 0.0, 0.0]
         for p in range(4):
             team = p % 2
             if team == 0:
-                rewards[p] = float(team0_pts - team1_pts)
+                base_reward = float(team0_pts - team1_pts)
             else:
-                rewards[p] = float(team1_pts - team0_pts)
+                base_reward = float(team1_pts - team0_pts)
+            
+            rewards[p] = base_reward
+            
+            # BONUS: Reward defenders who successfully euchred the caller
+            # This teaches that NOT calling with a bad hand is valuable
+            # because you can euchre opponents who call badly
+            if caller_team is not None and team != caller_team:
+                if (caller_team == 0 and team1_pts > 0) or (caller_team == 1 and team0_pts > 0):
+                    # We euchred them! Extra reward for good defense
+                    rewards[p] += 0.5
+            
+            # PENALTY: If you were dealer and forced to call with garbage, small penalty
+            # This encourages teammates to call earlier with good hands
+            # rather than forcing dealer into bad spots
+            if caller_team is not None and p == self.state.dealer:
+                # Check if this was a forced call (dealer in round 2)
+                # We can't easily detect this here, so skip for now
+                pass
         
         # Check for game over
         if self.state.score[0] >= config.WINNING_SCORE:

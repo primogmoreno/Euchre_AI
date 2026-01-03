@@ -9,7 +9,7 @@ from typing import Optional
 
 from game.engine import EuchreGame
 from model.network import EuchreNetwork
-from model.encoding import encode_state, action_to_index, create_action_mask
+from model.encoding import encode_state, action_to_index, index_to_action, create_action_mask
 
 
 @dataclass
@@ -39,6 +39,17 @@ class EpisodeBuffer:
         for player_exp in self.experiences.values():
             all_exp.extend(player_exp)
         return all_exp
+    
+    def get_by_player(self, player: int) -> list[Experience]:
+        """Get experiences for a specific player."""
+        return self.experiences[player]
+    
+    def get_by_team(self, team: int) -> list[Experience]:
+        """Get experiences for a team (0 or 1)."""
+        if team == 0:
+            return self.experiences[0] + self.experiences[2]
+        else:
+            return self.experiences[1] + self.experiences[3]
     
     def clear(self):
         self.experiences = {0: [], 1: [], 2: [], 3: []}
@@ -92,7 +103,6 @@ class SelfPlayRunner:
             value = value.item()
             
             # Convert action index to actual action
-            from model.encoding import index_to_action
             action = index_to_action(action_idx, legal_actions)
             
             # Take step
@@ -100,7 +110,7 @@ class SelfPlayRunner:
             observations = result.observations
             done = result.done
             
-            # Store experience
+            # Store experience with the reward for THIS player
             exp = Experience(
                 state=state,
                 action=action_idx,
@@ -150,7 +160,7 @@ def experiences_to_tensors(experiences: list[Experience]) -> dict:
     Convert list of experiences to batched tensors.
     
     Returns dict with:
-        states, actions, rewards, values, log_probs, dones, action_masks
+        states, actions, rewards, values, log_probs, dones, action_masks, players
     """
     return {
         "states": torch.FloatTensor(np.array([e.state for e in experiences])),
@@ -160,4 +170,60 @@ def experiences_to_tensors(experiences: list[Experience]) -> dict:
         "log_probs": torch.FloatTensor([e.log_prob for e in experiences]),
         "dones": [e.done for e in experiences],
         "action_masks": torch.BoolTensor(np.array([e.action_mask for e in experiences])),
+        "players": [e.player for e in experiences],
     }
+
+
+def compute_gae_by_player(experiences: list[Experience], gamma: float = 0.99, gae_lambda: float = 0.95) -> tuple[list[float], list[float]]:
+    """
+    Compute GAE separately for each player's trajectory, then combine.
+    
+    This is critical because experiences are interleaved between 4 players,
+    but each player's trajectory should be computed independently.
+    """
+    # Group experiences by player
+    by_player = {0: [], 1: [], 2: [], 3: []}
+    indices_by_player = {0: [], 1: [], 2: [], 3: []}
+    
+    for i, exp in enumerate(experiences):
+        by_player[exp.player].append(exp)
+        indices_by_player[exp.player].append(i)
+    
+    # Compute GAE for each player separately
+    all_advantages = [0.0] * len(experiences)
+    all_returns = [0.0] * len(experiences)
+    
+    for player in range(4):
+        player_exps = by_player[player]
+        player_indices = indices_by_player[player]
+        
+        if not player_exps:
+            continue
+        
+        # Compute GAE for this player's trajectory
+        advantages = []
+        returns = []
+        gae = 0
+        next_value = 0
+        
+        for t in reversed(range(len(player_exps))):
+            exp = player_exps[t]
+            
+            if exp.done:
+                next_value = 0
+                gae = 0
+            
+            delta = exp.reward + gamma * next_value - exp.value
+            gae = delta + gamma * gae_lambda * gae
+            
+            advantages.insert(0, gae)
+            returns.insert(0, gae + exp.value)
+            
+            next_value = exp.value
+        
+        # Put back into original positions
+        for idx, orig_idx in enumerate(player_indices):
+            all_advantages[orig_idx] = advantages[idx]
+            all_returns[orig_idx] = returns[idx]
+    
+    return all_advantages, all_returns
