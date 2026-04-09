@@ -13,6 +13,9 @@ euchre_ai/
 ├── checkpoints/    # Saved models
 └── scripts/        # Entry points
 
+Activate virtual environment:
+bash: .\.venv\Scripts\Activate.ps1 
+
 Setup
 bash: pip install -r requirements.txt
 
