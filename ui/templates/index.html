@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Euchre AI</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ===== START SCREEN ===== -->
+<div id="start-screen" class="screen active">
+  <div class="start-card">
+    <h1>Euchre AI</h1>
+    <p class="subtitle">Play against trained neural network agents</p>
+
+    <div class="agent-selectors">
+      <div class="player-slot">
+        <div class="slot-label top-label">Partner (Player 2)</div>
+        <select id="sel-p2" class="agent-select"></select>
+      </div>
+
+      <div class="opponents-row">
+        <div class="player-slot">
+          <div class="slot-label">Left Opponent (Player 3)</div>
+          <select id="sel-p3" class="agent-select"></select>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="player-slot">
+          <div class="slot-label">Right Opponent (Player 1)</div>
+          <select id="sel-p1" class="agent-select"></select>
+        </div>
+      </div>
+    </div>
+
+    <button id="btn-start" class="btn btn-primary btn-large">Start Game</button>
+    <div id="start-error" class="error-msg hidden"></div>
+  </div>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="game-screen" class="screen">
+
+  <!-- Scoreboard -->
+  <div id="scoreboard" class="scoreboard">
+    <div class="score-block your-team">
+      <span class="score-label">Your Team</span>
+      <span id="score-0" class="score-value">0</span>
+    </div>
+    <div class="score-divider">
+      <div id="trump-display" class="trump-display"></div>
+      <div id="dealer-display" class="dealer-display"></div>
+    </div>
+    <div class="score-block opp-team">
+      <span class="score-label">Opponents</span>
+      <span id="score-1" class="score-value">0</span>
+    </div>
+    <button id="btn-new-game" class="btn btn-secondary btn-sm">New Game</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div class="table">
+
+      <!-- Top: Player 2 (Partner) -->
+      <div class="player-zone top-zone" id="zone-p2">
+        <div class="player-label" id="name-p2">Partner</div>
+        <div class="ai-hand" id="hand-p2"></div>
+        <div class="tricks-badge" id="tricks-badge-team0"></div>
+      </div>
+
+      <!-- Left: Player 3 -->
+      <div class="player-zone left-zone" id="zone-p3">
+        <div class="player-label" id="name-p3">Player 3</div>
+        <div class="ai-hand vertical" id="hand-p3"></div>
+      </div>
+
+      <!-- Center: trick + info -->
+      <div class="center-zone">
+        <div id="turned-card-area" class="turned-card-area"></div>
+        <div id="current-trick" class="current-trick"></div>
+        <div id="event-log" class="event-log"></div>
+      </div>
+
+      <!-- Right: Player 1 -->
+      <div class="player-zone right-zone" id="zone-p1">
+        <div class="player-label" id="name-p1">Player 1</div>
+        <div class="ai-hand vertical" id="hand-p1"></div>
+      </div>
+
+      <!-- Bottom: Player 0 (You) -->
+      <div class="player-zone bottom-zone" id="zone-p0">
+        <div id="action-area" class="action-area"></div>
+        <div id="hand-p0" class="player-hand"></div>
+        <div class="player-label you-label">You</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Game Over overlay -->
+  <div id="game-over-overlay" class="game-over-overlay hidden">
+    <div class="game-over-card">
+      <div id="game-over-title" class="game-over-title"></div>
+      <div id="game-over-score" class="game-over-score"></div>
+      <div class="game-over-buttons">
+        <button id="btn-play-again" class="btn btn-primary">Play Again</button>
+        <button id="btn-change-opponents" class="btn btn-secondary">Change Opponents</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/static/game.js"></script>
+</body>
+</html>

@@ -31,6 +31,9 @@ bash: python scripts/play.py
 Evaluate agents:
 bash: python scripts/evaluate.py
 
+Run UI:
+bash: python ui/app.py
+
 Game Rules
 Euchre is a 4-player trick-taking card game played with a 24-card deck (9-A in each suit).
 Teams of 2 sit across from each other. The team that calls trump must win 3+ tricks
